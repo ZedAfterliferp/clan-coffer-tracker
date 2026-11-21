@@ -8,3 +8,24 @@ nbactions.xml
 nb-configuration.xml
 nbproject/
 *.class
+
+# Clan Coffer Tracker - Private server files
+server/.env
+server/*.db
+server/*.db-shm
+server/*.db-wal
+server/node_modules/
+
+# Additional private configuration
+.env
+.env.*
+!.env.example
+server/.env.*
+!server/.env.example
+
+# Logs and local files
+*.log
+out/
+*.iml
+.DS_Store
+Thumbs.db

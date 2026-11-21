@@ -1,13 +1,17 @@
-package com.example;
+
+package com.clancoffertracker;
 
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class ExamplePluginTest
+public class ClanCofferTrackerPluginTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(ExamplePlugin.class);
+		ExternalPluginManager.loadBuiltin(
+				ClanCofferTrackerPlugin.class
+		);
+
 		RuneLite.main(args);
 	}
 }
