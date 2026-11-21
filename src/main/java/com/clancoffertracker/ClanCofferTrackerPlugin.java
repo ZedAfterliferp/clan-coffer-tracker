@@ -67,6 +67,8 @@ public class ClanCofferTrackerPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
+
+
 		if (!config.enableTracking() || !config.enableDiscord())
 		{
 			return;
@@ -81,9 +83,10 @@ public class ClanCofferTrackerPlugin extends Plugin
 			return;
 		}
 
-		String message = Text.removeTags(event.getMessage()).trim();
+		String message = event.getMessage();
 
-		if (!message.toLowerCase(Locale.ROOT).contains("coffer"))
+		if (message == null
+				|| !message.toLowerCase(Locale.ROOT).contains("coffer"))
 		{
 			return;
 		}

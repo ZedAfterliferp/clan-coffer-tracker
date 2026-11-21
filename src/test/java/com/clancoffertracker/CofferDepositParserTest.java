@@ -34,4 +34,21 @@ public class CofferDepositParserTest
                 "NoMercy has deposited 0 coins into the coffer."
         ));
     }
+
+
+    @Test
+    public void testRealClanCofferDeposit()
+    {
+        String message =
+                "<int_0=10000000>Ember\u00A0Ego has deposited "
+                        + "<int_0:spacer> coins into the coffer.";
+
+        CofferDepositParser.Deposit deposit =
+                CofferDepositParser.parse(message);
+
+        assertNotNull(deposit);
+        assertEquals("Ember Ego", deposit.player);
+        assertEquals(10000000L, deposit.amount);
+    }
+
 }
