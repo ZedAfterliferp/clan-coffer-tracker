@@ -2,10 +2,6 @@
 package com.clancoffertracker;
 
 import com.google.inject.Provides;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,6 +13,11 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.util.Text;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,10 +31,16 @@ public class ClanCofferTrackerPlugin extends Plugin
 	private static final Logger log =
 			LoggerFactory.getLogger(ClanCofferTrackerPlugin.class);
 
+	private static final MediaType JSON =
+			MediaType.parse("application/json; charset=utf-8");
+
 	private ExecutorService reportExecutor;
 
 	@Inject
 	private ClanCofferTrackerConfig config;
+
+	@Inject
+	private OkHttpClient httpClient;
 
 	@Provides
 	ClanCofferTrackerConfig provideConfig(ConfigManager configManager)
@@ -132,9 +139,11 @@ public class ClanCofferTrackerPlugin extends Plugin
 				"{\"content\":\"" + escapeJson(message)
 						+ "\",\"allowed_mentions\":{\"parse\":[]}}";
 
+		final String webhookUrl = webhook;
+
 		try
 		{
-			executor.submit(() -> postDiscord(webhook, json));
+			executor.submit(() -> postDiscord(webhookUrl, json));
 		}
 		catch (java.util.concurrent.RejectedExecutionException ex)
 		{
@@ -146,18 +155,26 @@ public class ClanCofferTrackerPlugin extends Plugin
 	{
 		try
 		{
-			URL url = new URL(webhook);
-			String host = url.getHost().toLowerCase(Locale.ROOT);
-			String path = url.getPath();
+			okhttp3.HttpUrl url = okhttp3.HttpUrl.parse(webhook);
 
-			return "https".equalsIgnoreCase(url.getProtocol())
+			if (url == null)
+			{
+				return false;
+			}
+
+			String host = url.host().toLowerCase(Locale.ROOT);
+
+			return url.isHttps()
 					&& (host.equals("discord.com")
 					|| host.equals("discordapp.com"))
-					&& url.getPort() == -1
-					&& url.getUserInfo() == null
-					&& url.getQuery() == null
-					&& url.getRef() == null
-					&& path.matches("/api/webhooks/[0-9]+/[^/]+/?");
+					&& url.port() == 443
+					&& url.username().isEmpty()
+					&& url.password().isEmpty()
+					&& url.query() == null
+					&& url.fragment() == null
+					&& url.encodedPath().matches(
+					"/api/webhooks/[0-9]+/[^/]+/?"
+			);
 		}
 		catch (Exception ex)
 		{
@@ -208,50 +225,34 @@ public class ClanCofferTrackerPlugin extends Plugin
 
 	private void postDiscord(String webhook, String json)
 	{
-		HttpURLConnection connection = null;
+		RequestBody body = RequestBody.create(JSON, json);
 
-		try
+		Request request = new Request.Builder()
+				.url(webhook)
+				.post(body)
+				.build();
+
+		// Prevent redirects from forwarding webhook requests.
+		OkHttpClient client = httpClient.newBuilder()
+				.followRedirects(false)
+				.followSslRedirects(false)
+				.build();
+
+		try (Response response = client.newCall(request).execute())
 		{
-			connection = (HttpURLConnection)
-					new URL(webhook).openConnection();
-
-			connection.setInstanceFollowRedirects(false);
-			connection.setRequestMethod("POST");
-			connection.setRequestProperty(
-					"Content-Type",
-					"application/json"
-			);
-			connection.setConnectTimeout(5000);
-			connection.setReadTimeout(5000);
-			connection.setDoOutput(true);
-
-			try (OutputStream os = connection.getOutputStream())
-			{
-				os.write(json.getBytes(StandardCharsets.UTF_8));
-			}
-
-			int status = connection.getResponseCode();
-
-			if (status == 204 || status == 200)
+			if (response.code() == 204 || response.code() == 200)
 			{
 				log.info("Discord notification sent successfully");
 			}
 			else
 			{
-				log.warn("Discord returned HTTP {}", status);
+				log.warn("Discord returned HTTP {}", response.code());
 			}
 		}
 		catch (Exception ex)
 		{
 			// Do not log exceptions containing secret webhook URLs.
 			log.warn("Failed to send Discord notification");
-		}
-		finally
-		{
-			if (connection != null)
-			{
-				connection.disconnect();
-			}
 		}
 	}
 }
