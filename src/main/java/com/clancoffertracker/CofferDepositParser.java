@@ -3,6 +3,7 @@ package com.clancoffertracker;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.runelite.client.util.Text;
 
 public class CofferDepositParser
 {
@@ -80,10 +81,7 @@ public class CofferDepositParser
 
     private static String normalizePlayer(String player)
     {
-        return player
-                .replace("\u00A0", " ")
-                .replace("┬á", " ")
-                .trim();
+        return Text.toJagexName(player);
     }
 
     public static class Deposit
